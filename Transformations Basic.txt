@@ -1,0 +1,138 @@
+#include <GL/glut.h>   // OpenGL Utility Toolkit for rendering
+#include <cmath>       // For mathematical operations like sin, cos
+#include <cstdio>      // For input/output (printf, scanf)
+
+// Initial square vertices
+float vertices[4][2] = {
+    {-0.25, -0.25},
+    { 0.25, -0.25},
+    { 0.25,  0.25},
+    {-0.25,  0.25}
+};
+
+// Transformation parameters
+float tx = 0, ty = 0;         // Translation values
+float sx = 1, sy = 1;         // Scaling values
+float shx = 1, shy = 1;       // Shearing values
+float angle = 0;              // Rotation angle
+int option = 0;               // Transformation option selector
+
+// Function to draw the transformed polygon
+void drawPolygon() {
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < 4; i++) {
+        float x = vertices[i][0];
+        float y = vertices[i][1];
+        float newX, newY, rad;
+
+        // Apply selected transformation
+        switch(option) {
+            case 1: // Translation
+                x = x + tx;
+                y = y + ty;
+                break;
+
+            case 2: // Rotation
+                rad = angle * 3.14159 / 180; // Convert degrees to radians
+                newX = x * cos(rad) - y * sin(rad);
+                newY = x * sin(rad) + y * cos(rad);
+                x = newX;
+                y = newY;
+                break;
+
+            case 3: // Scaling
+                x *= sx;
+                y *= sy;
+                break;
+
+            case 4: // Shearing
+                x += shx * y;
+                y += shy * x;
+                break;
+
+            case 5: // No transformation
+                break;
+        }
+        glVertex2f(x, y); // Plot transformed vertex
+    }
+    glEnd();
+}
+
+// Display callback function
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT); // Clear screen with background color
+
+    // Draw X and Y axes in gray
+    glColor3f(0.5, 0.5, 0.5);
+    glBegin(GL_LINES);
+    glVertex2f(-1.0, 0.0);
+    glVertex2f(1.0, 0.0);
+    glVertex2f(0.0, -1.0);
+    glVertex2f(0.0, 1.0);
+    glEnd();
+
+    // Draw original square in blue
+    glColor3f(0, 0, 1);
+    glBegin(GL_LINE_LOOP);
+    for (int i = 0; i < 4; i++) {
+        glVertex2f(vertices[i][0], vertices[i][1]);
+    }
+    glEnd();
+
+    // Draw transformed square in red
+    glColor3f(1, 0, 0);
+    drawPolygon();
+
+    glutSwapBuffers(); // Swap buffers for double buffering
+}
+
+// Keyboard input handler
+void keyboard(unsigned char key, int x, int y) {
+    switch(key) {
+        case '0': // Reset
+            option = 0;
+            break;
+        case '1': // Translation
+            option = 1;
+            printf("Enter tx, ty: ");
+            scanf("%f %f", &tx, &ty);
+            break;
+        case '2': // Rotation
+            option = 2;
+            printf("Enter angle: ");
+            scanf("%f", &angle);
+            break;
+        case '3': // Scaling
+            option = 3;
+            printf("Enter sx, sy: ");
+            scanf("%f %f", &sx, &sy);
+            break;
+        case '4': // Shearing
+            option = 4;
+            printf("Enter shx, shy: ");
+            scanf("%f %f", &shx, &shy);
+            break;
+        case 27: // ESC key to exit
+            exit(0);
+    }
+    glutPostRedisplay(); // Re-render the scene after input
+}
+
+// Main function to initialize GLUT and register callbacks
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);                              // Initialize GLUT
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB);        // Enable double buffering and RGB color mode
+    glutInitWindowSize(600, 600);                       // Set initial window size
+    glutCreateWindow("Transformations");                // Create window with title
+
+    glClearColor(1.0, 1.0, 1.0, 1.0);                    // Set background color to white
+
+    glutDisplayFunc(display);                           // Register display callback
+    glutKeyboardFunc(keyboard);                         // Register keyboard callback
+
+    // Display control instructions
+    printf("Press\n1 - Translation\n2 - Rotation\n3 - Scaling\n4 - Shearing\n0 - Reset\nESC - Exit\n");
+
+    glutMainLoop();                                     // Enter the GLUT event processing loop
+    return 0;
+}

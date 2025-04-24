@@ -1,0 +1,115 @@
+#include <GL/glut.h>  // Include the OpenGL Utility Toolkit for rendering graphics
+#include <iostream>    // For standard I/O operations (e.g., cout)
+using namespace std;    // Use the standard namespace to avoid prefixing std::
+
+bool firstClick = true;       // Flag to check if it's the first mouse click
+int clickCount = 0; // Keeps track of number of clicks(for color and radius cycling)
+
+//OpenGL Initialization
+void myInit() {
+    glClearColor(1.0, 1.0, 1.0, 1.0); // Set the background color to white (RGBA)
+    glPointSize(3);                   // Set the size of each drawn point
+    gluOrtho2D(0, 800, 0, 800);   // Define the 2D orthographic projection (viewport from 0 to 800 in both x and y)
+}
+
+//Plotting symmetric points of a circle
+void drawPixel(int x, int y, int xc, int yc) {
+    glBegin(GL_POINTS);              // Start drawing points
+    // Plot all 8 symmetrical points of the circle
+    glVertex2i(xc + x, yc + y);      // 1st octant
+    glVertex2i(xc - x, yc + y);      // 2nd octant
+    glVertex2i(xc + x, yc - y);      // 8th octant
+    glVertex2i(xc - x, yc - y);      // 7th octant
+    glVertex2i(xc + y, yc + x);      // 4th octant
+    glVertex2i(xc - y, yc + x);      // 3rd octant
+    glVertex2i(xc + y, yc - x);      // 5th octant
+    glVertex2i(xc - y, yc - x);      // 6th octant
+    glEnd();                         // End drawing points
+}
+
+//Bresenham circle drawing algorithm
+void bresenhamCircle(int xc, int yc, int r) {
+    int x = 0, y = r;                // Starting point at (0, r)
+    int d = 3 - 2 * r;               // Initial decision parameter
+
+    while (x <= y) {                 // Continue until x crosses y
+        drawPixel(x, y, xc, yc);     // Draw the 8 symmetric points
+        if (d < 0)                   // If d is negative, choose East pixel
+            d += 4 * x + 6;
+        else {                  // If d is positive or zero, choose South-East pixel
+            d += 4 * (x - y) + 10;
+            y--;                     // Move inward in y
+        }
+        x++;                         // Move outward in x
+    }
+    glFlush();                       // Force execution of OpenGL commands
+}
+
+//Drawing text in window
+void drawText(const char* text, int x, int y) {
+    glColor3f(0.0, 0.0, 0.0);        // Set text color to black
+    glRasterPos2i(x, y);             // Set position to start drawing text
+    while (*text) {                  // Loop through each character in the string
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, *text++); // Draw character
+    }
+}
+
+//Drawing X and Y Axes
+void drawAxes() {
+    glColor3f(0.0, 0.0, 0.0);        // Set color for axes to black
+    glBegin(GL_LINES);              // Begin drawing lines
+    glVertex2i(0, 400);             // Draw X-axis: start from left middle
+    glVertex2i(800, 400);           // End at right middle
+    glVertex2i(400, 0);             // Draw Y-axis: start from bottom middle
+    glVertex2i(400, 800);           // End at top middle
+    glEnd();                        // End drawing lines
+    glFlush();                      // Ensure everything is rendered
+}
+
+//Initial Display Function
+void myDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT);   // Clear the screen
+    drawAxes();                     // Draw coordinate axes
+    drawText("Click to draw circles!", 320, 750);  // Display a message at the top
+    glFlush();                      // Flush all OpenGL commands to the screen
+}
+
+//Mouse Click Handling
+void mouse(int btn, int state, int x, int y) {
+    y = 800 - y;        // Flip y-coordinate because OpenGL has bottom-left origin
+
+    if (btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN) { // If left mouse button is pressed
+        if (firstClick) {           // On first click only
+            drawAxes();             // Redraw the axes
+            firstClick = false;     // Set flag to false
+        }
+
+        float colors[3][3] = {      // Array of RGB color values
+            {1.0, 0.0, 0.0},        // Red
+            {0.0, 1.0, 0.0},        // Green
+            {0.0, 0.0, 1.0}         // Blue
+        };
+
+        int radius[] = {80, 120, 160}; // Array of radii for circles
+        int index = clickCount % 3;    // Cycle between 0, 1, 2 for color and radius
+
+        glColor3f(colors[index][0], colors[index][1], colors[index][2]);     // Set color based on click
+        bresenhamCircle(400, 400, radius[index]);   // Draw a circle centered at (400, 400)
+        clickCount++;                 // Increment the click count
+    }
+}
+
+//Main Function
+int main(int argc, char** argv) {
+    cout << "Circle drawn using Bresenham's circle drawing algorithm is:"; // Console message
+    glutInit(&argc, argv);                  // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);   // Set display mode to single buffer and RGB
+    glutInitWindowSize(800, 800);           // Set window size to 800x800
+    glutInitWindowPosition(100, 100);       // Set window position on screen
+    glutCreateWindow("Bresenham Circle with Colors and Text");   // Create window with title
+    myInit();                               // Call initialization function
+    glutDisplayFunc(myDisplay);            // Register display callback function
+    glutMouseFunc(mouse);                  // Register mouse callback function
+    glutMainLoop();                        // Enter GLUT event processing loop
+    return 0;                              // Exit main function
+}

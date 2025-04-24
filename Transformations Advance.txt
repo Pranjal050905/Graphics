@@ -1,0 +1,195 @@
+#include <stdio.h>
+#include <windows.h>
+#include <GL/glut.h>
+#include <vector>
+#include <iostream>
+#include <cmath>
+
+using namespace std;
+
+// Store original and transformed vertices of the shape
+vector<vector<int>> vertices; // Original input vertices
+vector<vector<int>> result;   // Vertices after transformation
+
+// Function to take input from user for shape vertices
+void takeInputShape() {
+    int no_of_vertices;
+    cout << "Enter the number of vertices: ";
+    cin >> no_of_vertices;
+
+    // Resize and initialize each vertex with homogeneous coordinates (x, y, 1)
+    vertices.resize(no_of_vertices, vector<int>(3, 1));
+    for (int i = 0; i < no_of_vertices; i++) {
+        cout << "Enter coordinates (x, y) for vertex " << i + 1 << ": ";
+        cin >> vertices[i][0] >> vertices[i][1];
+
+        // Shift coordinates to fit OpenGL coordinate system (centered at (400, 300))
+        vertices[i][0] += 400;
+        vertices[i][1] += 300;
+    }
+
+    // Initially, result is the same as the original shape
+    result = vertices;
+}
+
+// Perform translation of the shape
+void translate() {
+    int tx, ty;
+    cout << "Enter translation values (tx ty): ";
+    cin >> tx >> ty;
+
+    // Add translation values to each vertex
+    for (int i = 0; i < vertices.size(); i++) {
+        result[i][0] += tx;
+        result[i][1] += ty;
+    }
+
+    // Redisplay after transformation
+    glutPostRedisplay();
+}
+
+// Perform rotation around a user-defined pivot point
+void rotate() {
+    int px, py;
+    double angle;
+    cout << "Enter rotation point (px py): ";
+    cin >> px >> py;
+    cout << "Enter rotation angle (degrees): ";
+    cin >> angle;
+
+    // Convert angle from degrees to radians
+    angle = angle * M_PI / 180.0;
+
+    // Step 1: Translate pivot point to origin
+    for (int i = 0; i < result.size(); i++) {
+        result[i][0] -= (px + 400);
+        result[i][1] -= (py + 300);
+    }
+
+    // Step 2: Apply rotation around origin
+    for (int i = 0; i < result.size(); i++) {
+        int x = result[i][0];
+        int y = result[i][1];
+        result[i][0] = x * cos(angle) - y * sin(angle);
+        result[i][1] = x * sin(angle) + y * cos(angle);
+    }
+
+    // Step 3: Translate back to original pivot point
+    for (int i = 0; i < result.size(); i++) {
+        result[i][0] += (px + 400);
+        result[i][1] += (py + 300);
+    }
+
+    glutPostRedisplay();
+}
+
+// Perform scaling of the shape about the center (400, 300)
+void scale() {
+    float sx, sy;
+    cout << "Enter scaling factors (sx sy): ";
+    cin >> sx >> sy;
+
+    for (int i = 0; i < result.size(); i++) {
+        result[i][0] = 400 + (result[i][0] - 400) * sx;
+        result[i][1] = 300 + (result[i][1] - 300) * sy;
+    }
+
+    glutPostRedisplay();
+}
+
+// Perform shear transformation
+void shear() {
+    float shx, shy;
+    cout << "Enter shear values (shx shy): ";
+    cin >> shx >> shy;
+
+    for (int i = 0; i < result.size(); i++) {
+        int x = result[i][0] - 400;
+        int y = result[i][1] - 300;
+        result[i][0] = 400 + x + shx * y;
+        result[i][1] = 300 + y + shy * x;
+    }
+
+    glutPostRedisplay();
+}
+
+// Display function for OpenGL window
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT); // Clear screen
+
+    // Draw X and Y axes (black lines)
+    glColor3f(0.0, 0.0, 0.0);
+    glBegin(GL_LINES);
+    glVertex2f(800, 300); glVertex2f(0, 300); // X-axis
+    glVertex2f(400, 600); glVertex2f(400, 0); // Y-axis
+    glEnd();
+
+    // Draw grid ticks along X-axis
+    for (int i = 1; i < 40; i++) {
+        glBegin(GL_LINES);
+        glVertex2f(20 * i, 295);
+        glVertex2f(20 * i, 305);
+        glEnd();
+    }
+
+    // Draw grid ticks along Y-axis
+    for (int i = 1; i < 30; i++) {
+        glBegin(GL_LINES);
+        glVertex2f(395, 20 * i);
+        glVertex2f(405, 20 * i);
+        glEnd();
+    }
+
+    // Draw original shape in red
+    if (!vertices.empty()) {
+        glColor3f(1.0, 0.0, 0.0);
+        glBegin(GL_LINE_LOOP);
+        for (int i = 0; i < vertices.size(); i++) {
+            glVertex2f(vertices[i][0], vertices[i][1]);
+        }
+        glEnd();
+    }
+
+    // Draw transformed shape in blue
+    if (!result.empty()) {
+        glColor3f(0.0, 0.0, 1.0);
+        glBegin(GL_LINE_LOOP);
+        for (int i = 0; i < result.size(); i++) {
+            glVertex2f(result[i][0], result[i][1]);
+        }
+        glEnd();
+    }
+
+    glFlush(); // Force execution of OpenGL commands
+}
+
+// Initialize OpenGL settings
+void initOpenGL() {
+    glClearColor(1.0, 1.0, 1.0, 1.0); // White background
+    gluOrtho2D(0, 800, 0, 600);       // 2D orthographic projection
+}
+
+// Handle keyboard input for transformation commands
+void keyboard(unsigned char key, int x, int y) {
+    if (key == 't' || key == 'T') translate();
+    else if (key == 'r' || key == 'R') rotate();
+    else if (key == 's' || key == 'S') scale();
+    else if (key == 'h' || key == 'H') shear();
+}
+
+// Main function: setup and start OpenGL loop
+int main(int argc, char **argv) {
+    takeInputShape(); // Take input from user
+
+    glutInit(&argc, argv);                        // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);  // Single buffer and RGB mode
+    glutInitWindowSize(800, 600);                 // Set window size
+    glutCreateWindow("2D Transformations");       // Create window with title
+
+    initOpenGL();              // Set OpenGL environment
+    glutDisplayFunc(display);  // Set display callback
+    glutKeyboardFunc(keyboard);// Set keyboard callback
+
+    glutMainLoop();            // Enter main event loop
+    return 0;
+}

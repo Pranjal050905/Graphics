@@ -1,0 +1,187 @@
+#include <GL/glut.h>     // OpenGL Utility Toolkit header for graphics rendering
+#include <iostream>      // For input/output operations
+#include <unistd.h>      // For sleep/delay function using usleep (Linux/Unix systems)
+using namespace std;
+
+// Window dimensions
+int width = 800, height = 600;
+
+// Color arrays for different operations in RGB format
+float floodFillColor[3] = {1.0, 1.0, 0.0};   // Yellow for flood fill
+float boundaryFillColor[3] = {0.0, 1.0, 0.0}; // Green for boundary fill
+float borderColor[3] = {0.0, 0.0, 0.0};       // Black for shape borders
+float bgColor[3] = {1.0, 1.0, 1.0};           // White background
+float titleColor[3] = {0.0, 0.0, 1.0};        // Blue text for titles
+
+// Sets a pixel at (x, y) with a specific RGB color
+void setPixel(int x, int y, float color[3]) {
+    glBegin(GL_POINTS);
+    glColor3fv(color);           // Set drawing color
+    glVertex2i(x, y);            // Plot the point
+    glEnd();
+    glFlush();                   // Force rendering
+    usleep(1000);                // Add delay for visualization
+}
+
+// Reads the color of the pixel at (x, y)
+void getPixelColor(int x, int y, float color[3]) {
+    glReadPixels(x, y, 1, 1, GL_RGB, GL_FLOAT, color); // Read color of 1x1 pixel
+}
+
+// Recursive flood fill algorithm using 4-connected neighbors
+void floodFill(int x, int y, float oldColor[3], float newColor[3]) {
+    float color[3];
+    getPixelColor(x, y, color);  // Get the current color of the pixel
+
+    // Check if the color matches the target color and isn't already the new color
+    if ((color[0] == oldColor[0] && color[1] == oldColor[1] && color[2] == oldColor[2]) &&
+        (color[0] != newColor[0] || color[1] != newColor[1] || color[2] != newColor[2])) {
+        setPixel(x, y, newColor);    // Set pixel to new color
+        floodFill(x + 1, y, oldColor, newColor);  // Right
+        floodFill(x - 1, y, oldColor, newColor);  // Left
+        floodFill(x, y + 1, oldColor, newColor);  // Up
+        floodFill(x, y - 1, oldColor, newColor);  // Down
+    }
+}
+
+// Recursive boundary fill algorithm using 4-connected neighbors
+void boundaryFill(int x, int y, float boundaryColor[3], float newColor[3]) {
+    float color[3];
+    getPixelColor(x, y, color);  // Get the current color
+
+    // Fill if not boundary and not already filled
+    if ((color[0] != boundaryColor[0] || color[1] != boundaryColor[1] || color[2] != boundaryColor[2]) &&
+        (color[0] != newColor[0] || color[1] != newColor[1] || color[2] != newColor[2])) {
+        setPixel(x, y, newColor);
+        boundaryFill(x + 1, y, boundaryColor, newColor);
+        boundaryFill(x - 1, y, boundaryColor, newColor);
+        boundaryFill(x, y + 1, boundaryColor, newColor);
+        boundaryFill(x, y - 1, boundaryColor, newColor);
+    }
+}
+
+// Draws title boxes and labels
+void drawTitle() {
+    // Draw rectangle for "Flood Fill" (left side)
+    glColor3fv(borderColor);
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(50, 500);
+    glVertex2i(250, 500);
+    glVertex2i(250, 550);
+    glVertex2i(50, 550);
+    glEnd();
+
+    // Render the flood fill label
+    glColor3fv(titleColor);
+    glRasterPos2i(70, 520);
+    string text1 = "Flood Fill (Left Click)";
+    for (int i = 0; i < text1.length(); i++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, text1[i]);
+    }
+
+    // Draw rectangle for "Boundary Fill" (right side)
+    glColor3fv(borderColor);
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(350, 500);
+    glVertex2i(600, 500);
+    glVertex2i(600, 550);
+    glVertex2i(350, 550);
+    glEnd();
+
+    // Render the boundary fill label
+    glColor3fv(titleColor);
+    glRasterPos2i(370, 520);
+    string text2 = "Boundary Fill (Right Click)";
+    for (int i = 0; i < text2.length(); i++) {
+        glutBitmapCharacter(GLUT_BITMAP_HELVETICA_18, text2[i]);
+    }
+
+    glFlush();
+}
+
+// Draws a square shape using line loop
+void drawSquare() {
+    glColor3fv(borderColor);
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(200, 200);
+    glVertex2i(300, 200);
+    glVertex2i(300, 300);
+    glVertex2i(200, 300);
+    glEnd();
+    glFlush();
+}
+
+// Draws a pentagon shape
+void drawPentagon() {
+    glColor3fv(borderColor);
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(400, 200);
+    glVertex2i(450, 150);
+    glVertex2i(500, 200);
+    glVertex2i(475, 275);
+    glVertex2i(425, 275);
+    glEnd();
+    glFlush();
+}
+
+// Draw both shapes on screen
+void drawShape() {
+    drawSquare();
+    drawPentagon();
+}
+
+// Display function registered with GLUT
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT); // Clear screen
+    drawTitle();                  // Draw the titles
+    drawShape();                  // Draw shapes
+}
+
+// Mouse click handler
+void mouse(int button, int state, int x, int y) {
+    y = height - y; // Flip y to match OpenGL coordinate system
+
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        if (x >= 50 && x <= 250 && y >= 500 && y <= 550) {
+            // Flood fill the "Flood Fill" title box
+            floodFill(100, 525, bgColor, floodFillColor);
+        } else {
+            // Otherwise, flood fill the clicked shape if background color matches
+            float oldColor[3];
+            getPixelColor(x, y, oldColor);
+            if (oldColor[0] == bgColor[0] && oldColor[1] == bgColor[1] && oldColor[2] == bgColor[2]) {
+                floodFill(x, y, oldColor, floodFillColor);
+            }
+        }
+    }
+    else if (button == GLUT_RIGHT_BUTTON && state == GLUT_DOWN) {
+        if (x >= 350 && x <= 550 && y >= 500 && y <= 550) {
+            // Boundary fill the "Boundary Fill" title box
+            boundaryFill(400, 525, borderColor, boundaryFillColor);
+        } else {
+            // Otherwise, boundary fill the shape
+            boundaryFill(x, y, borderColor, boundaryFillColor);
+        }
+    }
+}
+
+// Initialization settings for the window
+void init() {
+    glClearColor(bgColor[0], bgColor[1], bgColor[2], 1.0); // Set background color
+    glMatrixMode(GL_PROJECTION);                           // Set projection matrix
+    gluOrtho2D(0, width, 0, height);                        // Set coordinate system
+}
+
+// Main entry point
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);                             // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);       // Single buffer, RGB mode
+    glutInitWindowSize(width, height);                 // Set window size
+    glutCreateWindow("Flood Fill and Boundary Fill (Pranjal)"); // Window title
+    glutDisplayFunc(display);                          // Register display function
+    glutMouseFunc(mouse);                              // Register mouse callback
+    init();                                            // Perform initialization
+    glutMainLoop();                                    // Enter event loop
+
+    return 0;
+}

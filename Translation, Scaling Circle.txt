@@ -1,0 +1,150 @@
+#include <GL/glut.h>     // OpenGL Utility Toolkit for windowing and rendering
+#include <cstdlib>       // Standard library (not used here, but often included)
+#include <iostream>      // For console I/O
+using namespace std;
+
+// ------------------------------
+// Global Variables
+// ------------------------------
+int r = 80, x, y;               // Initial circle radius and coordinates
+int x1 = 400, y1 = 400;         // Circle center at middle of the window
+bool first = true;             // Flag to detect the first mouse click
+
+float scaleFactor = 1.5;       // How much to scale the circle each click
+int translateX = 50, translateY = 50;  // How much to move the circle
+
+float maxScale = 3.0;          // Maximum allowed scaling
+float currentScale = 1.0;      // Current scale level of the circle
+
+int maxTranslateX = 600, maxTranslateY = 600;  // Maximum allowed translation
+int minTranslateX = 100, minTranslateY = 100;  // Minimum allowed translation
+
+// ------------------------------
+// OpenGL Initialization
+// ------------------------------
+void myInit() {
+    glClearColor(1.0, 1.0, 1.0, 1.0); // Set background color to white
+    glPointSize(3);                  // Set pixel size
+    glViewport(0, 0, 800, 800);      // Set the viewport size
+    gluOrtho2D(0, 800, 0, 800);      // Set orthographic 2D projection (origin bottom-left)
+}
+
+// ------------------------------
+// Function to draw a pixel (not used in this code)
+// ------------------------------
+void draw_pixel(int x, int y) {
+    glBegin(GL_POINTS);
+    glVertex2i(x, y);  // Plot the point
+    glEnd();
+}
+
+// ------------------------------
+// Function to plot 8 symmetric points of the circle
+// ------------------------------
+void draw_circle(int x, int y, int x1, int y1) {
+    glBegin(GL_POINTS);
+    glVertex2i(x1 + x, y1 + y);  // Octants
+    glVertex2i(x1 - x, y1 + y);
+    glVertex2i(x1 + x, y1 - y);
+    glVertex2i(x1 - x, y1 - y);
+    glVertex2i(x1 + y, y1 + x);
+    glVertex2i(x1 - y, y1 + x);
+    glVertex2i(x1 + y, y1 - x);
+    glVertex2i(x1 - y, y1 - x);
+    glEnd();
+    glFlush(); // Push commands to display
+}
+
+// ------------------------------
+// Bresenham’s Circle Drawing Algorithm
+// ------------------------------
+void bresenham_circle(int r, int x1, int y1) {
+    int d = 3 - 2 * r;  // Initial decision parameter
+    x = 0;
+    y = r;
+
+    do {
+        draw_circle(x, y, x1, y1);  // Draw symmetrical points
+        if (d < 0) {
+            x++;
+            d = d + 4 * x + 6;
+        } else {
+            d = d + 4 * (x - y) + 10;
+            x++;
+            y--;
+        }
+    } while (x <= y);
+}
+
+// ------------------------------
+// Draw X and Y axis for reference
+// ------------------------------
+void draw_axis() {
+    glColor3f(0.0, 0.0, 0.0);  // Black color
+    glBegin(GL_LINES);
+    glVertex2i(0, 400); glVertex2i(800, 400); // X-axis (horizontal)
+    glVertex2i(400, 0); glVertex2i(400, 800); // Y-axis (vertical)
+    glEnd();
+}
+
+// ------------------------------
+// Display callback
+// ------------------------------
+void myDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT); // Clear the screen
+
+    draw_axis();                  // Draw X and Y axis
+    glColor3f(1.0, 0.0, 0.0);     // Set color to red for circle
+    bresenham_circle(r, x1, y1);  // Draw the circle at (x1, y1)
+
+    glFlush(); // Execute all drawing commands
+}
+
+// ------------------------------
+// Mouse click callback function
+// ------------------------------
+void mouse(int btn, int state, int x, int y) {
+    // If left mouse button is clicked
+    if (btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        if (first) {
+            // On the first click, just show the axis
+            draw_axis();
+            glFlush();
+            first = false;
+        } else {
+            // If not first click, allow translation within limits
+            if ((x1 + translateX) <= maxTranslateX && (x1 + translateX) >= minTranslateX) {
+                x1 += translateX;
+            }
+            if ((y1 + translateY) <= maxTranslateY && (y1 + translateY) >= minTranslateY) {
+                y1 += translateY;
+            }
+
+            // Allow scaling only up to maxScale
+            if (currentScale < maxScale) {
+                r *= scaleFactor;           // Scale the radius
+                currentScale *= scaleFactor; // Update scale factor
+            }
+        }
+
+        glutPostRedisplay(); // Request to redraw the window
+    }
+}
+
+// ------------------------------
+// Main Function
+// ------------------------------
+int main(int argc, char **argv) {
+    glutInit(&argc, argv);                           // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);     // Single buffer & RGB mode
+    glutInitWindowSize(800, 800);                    // Window size
+    glutInitWindowPosition(500, 500);                // Window screen position
+    glutCreateWindow("Bresenham Circle with Limited Scaling and Translation"); // Title
+
+    myInit();                   // Call initialization
+    glutDisplayFunc(myDisplay); // Register display callback
+    glutMouseFunc(mouse);       // Register mouse event callback
+    glutMainLoop();             // Enter the main event loop
+
+    return 0;
+}

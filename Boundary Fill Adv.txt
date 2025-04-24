@@ -1,0 +1,103 @@
+#include <GL/glut.h>
+#include <iostream>
+
+// Window dimensions
+int windowWidth = 500, windowHeight = 500;
+
+// ------------------------------
+// Function to set a single pixel with RGB color
+void setPixel(int x, int y, float r, float g, float b) {
+    glColor3f(r, g, b);         // Set the drawing color
+    glBegin(GL_POINTS);         // Start drawing points
+    glVertex2i(x, y);           // Specify point at (x, y)
+    glEnd();
+    glFlush();                  // Immediately render the point
+}
+
+// ------------------------------
+// Function to get the current color of a pixel at (x, y)
+void getPixelColor(int x, int y, float* color) {
+    glReadPixels(x, y, 1, 1, GL_RGB, GL_FLOAT, color);  // Read pixel color into 'color'
+}
+
+// ------------------------------
+// Compare two colors; returns true if they are the same
+bool isSameColor(float* color1, float* color2) {
+    return (color1[0] == color2[0] &&
+            color1[1] == color2[1] &&
+            color1[2] == color2[2]);
+}
+
+// ------------------------------
+// 4-connected Boundary Fill algorithm
+void boundaryFill(int x, int y, float* fillColor, float* boundaryColor) {
+    float currentColor[3];
+    getPixelColor(x, y, currentColor);  // Get the color of the current pixel
+
+    // If the current pixel is not the boundary and not already filled with the fill color, fill it
+    if (!isSameColor(currentColor, boundaryColor) &&
+        !isSameColor(currentColor, fillColor)) {
+        setPixel(x, y, fillColor[0], fillColor[1], fillColor[2]);  // Set the fill color
+
+        // Recursively fill 4 neighboring pixels (up, down, left, right)
+        boundaryFill(x + 1, y, fillColor, boundaryColor);
+        boundaryFill(x - 1, y, fillColor, boundaryColor);
+        boundaryFill(x, y + 1, fillColor, boundaryColor);
+        boundaryFill(x, y - 1, fillColor, boundaryColor);
+    }
+}
+
+// ------------------------------
+// Mouse click callback: triggers boundary fill on left click
+void mouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        float boundaryColor[3] = {0.0f, 0.0f, 0.0f}; // Black boundary
+        float fillColor[3] = {1.0f, 0.0f, 0.0f};     // Red fill color
+
+        int fx = x;
+        int fy = windowHeight - y;  // Convert to OpenGL's bottom-left origin
+
+        // Call boundary fill function
+        boundaryFill(fx, fy, fillColor, boundaryColor);
+    }
+}
+
+// ------------------------------
+// Display function: draw the boundary shape (a square)
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);  // Clear the screen
+
+    // Draw a square boundary (black)
+    glColor3f(0.0f, 0.0f, 0.0f);  // Set color to black for the boundary
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(100, 100);   // Bottom-left corner
+    glVertex2i(300, 100);   // Bottom-right corner
+    glVertex2i(300, 300);   // Top-right corner
+    glVertex2i(100, 300);   // Top-left corner
+    glEnd();
+
+    glFlush();  // Render the square immediately
+}
+
+// ------------------------------
+// OpenGL initialization
+void init() {
+    glClearColor(1.0, 1.0, 1.0, 1.0); // Set white background
+    glColor3f(0.0, 0.0, 0.0);         // Default drawing color is black
+    gluOrtho2D(0, windowWidth, 0, windowHeight); // Set up orthographic projection
+}
+
+// ------------------------------
+// Main function: Set up the OpenGL window and start the main loop
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);                             // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);       // Single buffer, RGB color mode
+    glutInitWindowSize(windowWidth, windowHeight);     // Set the window size
+    glutCreateWindow("Boundary Fill in OpenGL");       // Create the window
+
+    init();                      // Initialize OpenGL settings
+    glutDisplayFunc(display);    // Register display callback
+    glutMouseFunc(mouse);        // Register mouse callback
+    glutMainLoop();              // Start the event-processing loop
+    return 0;
+}

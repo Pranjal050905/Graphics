@@ -1,0 +1,152 @@
+#include <GL/glut.h>        // OpenGL Utility Toolkit for graphics functions
+#include <unistd.h>         // For usleep() to create a small delay in pixel setting
+#include <iostream>         // For standard input/output
+using namespace std;
+
+// Window size
+int width = 800, height = 600;
+
+// Fill option: 0 = No Fill, 1 = Flood Fill, 2 = Boundary Fill
+int fillOption = 0;
+
+// Colors used in the program
+float bgColor[3] = {1.0, 1.0, 1.0};          // White background
+float borderColor[3] = {0.0, 0.0, 0.0};      // Black border
+float floodColor[3] = {1.0, 0.0, 0.0};       // Red color for flood fill
+float boundaryColor[3] = {0.0, 1.0, 0.0};    // Green color for boundary fill
+
+// Set a pixel with specified color
+void setPixel(int x, int y, float color[3]) {
+    glColor3fv(color);            // Set current drawing color
+    glBegin(GL_POINTS);          // Begin drawing a single point
+    glVertex2i(x, y);            // Draw the point at (x, y)
+    glEnd();
+    glFlush();                   // Force execution of OpenGL commands
+    usleep(300);                 // Delay for animation effect (in microseconds)
+}
+
+// Get the color of a pixel at (x, y)
+void getPixelColor(int x, int y, float color[3]) {
+    glReadPixels(x, y, 1, 1, GL_RGB, GL_FLOAT, color);  // Read pixel color into array
+}
+
+// Compare two colors with a small tolerance for float comparison
+bool isSameColor(float a[3], float b[3]) {
+    return (abs(a[0] - b[0]) < 0.01 &&
+            abs(a[1] - b[1]) < 0.01 &&
+            abs(a[2] - b[2]) < 0.01);
+}
+
+// Recursive flood fill algorithm
+void floodFill(int x, int y, float oldColor[3], float newColor[3]) {
+    float color[3];
+    getPixelColor(x, y, color);
+
+    // If current pixel is of the old color and not yet filled
+    if (isSameColor(color, oldColor) && !isSameColor(color, newColor)) {
+        setPixel(x, y, newColor);
+        // Recursively fill adjacent pixels
+        floodFill(x + 1, y, oldColor, newColor);
+        floodFill(x - 1, y, oldColor, newColor);
+        floodFill(x, y + 1, oldColor, newColor);
+        floodFill(x, y - 1, oldColor, newColor);
+    }
+}
+
+// Recursive boundary fill algorithm
+void boundaryFill(int x, int y, float bColor[3], float fillColor[3]) {
+    float color[3];
+    getPixelColor(x, y, color);
+
+    // If pixel is not border and not yet filled
+    if (!isSameColor(color, bColor) && !isSameColor(color, fillColor)) {
+        setPixel(x, y, fillColor);
+        // Recursively fill in all directions
+        boundaryFill(x + 1, y, bColor, fillColor);
+        boundaryFill(x - 1, y, bColor, fillColor);
+        boundaryFill(x, y + 1, bColor, fillColor);
+        boundaryFill(x, y - 1, bColor, fillColor);
+    }
+}
+
+// Draw two basic shapes: a square and a triangle
+void drawShape() {
+    glColor3fv(borderColor);  // Set color for borders
+
+    // Draw square using GL_LINE_LOOP
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(200, 200);
+    glVertex2i(300, 200);
+    glVertex2i(300, 300);
+    glVertex2i(200, 300);
+    glEnd();
+
+    // Draw triangle using GL_LINE_LOOP
+    glBegin(GL_LINE_LOOP);
+    glVertex2i(400, 200);
+    glVertex2i(500, 200);
+    glVertex2i(450, 300);
+    glEnd();
+
+    glFlush();  // Render all drawing commands
+}
+
+// Display callback for rendering
+void myDisplay() {
+    glClear(GL_COLOR_BUFFER_BIT); // Clear the screen
+    drawShape();                  // Draw the shapes
+}
+
+// Mouse callback function
+void mouse(int btn, int state, int x, int y) {
+    if (btn == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        int my = height - y;  // Convert window y-coordinate to OpenGL y-coordinate
+        int mx = x;
+
+        float clickedColor[3];
+        getPixelColor(mx, my, clickedColor);  // Get the color at clicked pixel
+
+        if (fillOption == 1 && isSameColor(clickedColor, bgColor)) {
+            // Perform flood fill if clicked on background
+            floodFill(mx, my, bgColor, floodColor);
+        } else if (fillOption == 2 && !isSameColor(clickedColor, borderColor)) {
+            // Perform boundary fill if clicked inside shape
+            boundaryFill(mx, my, borderColor, boundaryColor);
+        }
+    }
+}
+
+// Menu callback function to change fill option
+void menu(int option) {
+    fillOption = option;     // Set fill option (1 = flood, 2 = boundary)
+    glutPostRedisplay();     // Redraw window
+}
+
+// Initialize OpenGL settings
+void init() {
+    glClearColor(bgColor[0], bgColor[1], bgColor[2], 1.0); // Set background color
+    glMatrixMode(GL_PROJECTION);      // Switch to projection matrix
+    gluOrtho2D(0, width, 0, height);  // Set 2D orthographic viewing region
+}
+
+// Main function
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);                             // Initialize GLUT
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);       // Use single buffer and RGB color mode
+    glutInitWindowSize(width, height);                 // Set window size
+    glutInitWindowPosition(100, 100);                  // Set window position
+    glutCreateWindow("Flood Fill and Boundary Fill - Dev C++ Compatible"); // Create window
+
+    init();                         // Call init function
+    glutDisplayFunc(myDisplay);     // Register display callback
+    glutMouseFunc(mouse);           // Register mouse callback
+
+    // Create right-click menu
+    glutCreateMenu(menu);
+    glutAddMenuEntry("Flood Fill", 1);
+    glutAddMenuEntry("Boundary Fill", 2);
+    glutAttachMenu(GLUT_RIGHT_BUTTON); // Attach menu to right-click
+
+    glutMainLoop();                 // Enter the event-processing loop
+    return 0;
+}

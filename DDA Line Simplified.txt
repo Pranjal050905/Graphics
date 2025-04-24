@@ -1,0 +1,119 @@
+#include <GL/glut.h>   // GLUT, OpenGL, and GLU library
+#include <iostream>    // For console output
+using namespace std;
+
+int lineType = 0;      // Line style type: 0=simple, 1=dotted, 2=dashed, 3=solid
+bool triangleDrawn = false;  // To track if triangle is already drawn
+
+// -------- OpenGL Initialization --------
+void init() {
+    glClearColor(1, 1, 1, 1);       // Set background to white
+    gluOrtho2D(0, 800, 0, 800);     // Set 2D coordinate system (left, right, bottom, top)
+    glPointSize(2);                 // Set pixel size
+}
+
+// -------- Draw a Single Pixel --------
+void drawPixel(float x, float y) {
+    glBegin(GL_POINTS);            // Begin drawing points
+    glVertex2f(x, y);              // Set pixel at (x, y)
+    glEnd();                       // End drawing
+}
+
+// -------- DDA Line Drawing with Styles --------
+void drawLineDDA(int x1, int y1, int x2, int y2, int type) {
+    float dx = x2 - x1;            // Calculate change in x
+    float dy = y2 - y1;            // Calculate change in y
+    int steps = max(abs(dx), abs(dy));   // Number of steps based on max of dx or dy
+    float xInc = dx / steps;       // x increment per step
+    float yInc = dy / steps;       // y increment per step
+
+    float x = x1, y = y1;
+
+    for (int i = 0; i <= steps; i++) {
+        bool draw = false;
+
+        // Line style conditions
+        if (type == 0) draw = true;                      // Simple Line
+        else if (type == 1 && i % 5 == 0) draw = true;   // Dotted Line
+        else if (type == 2 && (i % 10 < 5)) draw = true; // Dashed Line
+        else if (type == 3) {                            // Solid Line
+            glLineWidth(4);                              // Set thick line width
+            glBegin(GL_LINES);                           // Use OpenGL to draw a straight line
+            glVertex2f(x1, y1);
+            glVertex2f(x2, y2);
+            glEnd();
+            return;  // Skip DDA drawing for solid line
+        }
+
+        if (draw)
+            drawPixel(x, y);     // Draw pixel if condition met
+
+        x += xInc;               // Move to next point
+        y += yInc;
+    }
+}
+
+// -------- Draw X and Y Axis --------
+void drawAxis() {
+    glColor3f(0, 0, 0);                           // Black color for axis
+    drawLineDDA(0, 400, 800, 400, 0);             // X-axis (horizontal line)
+    drawLineDDA(400, 0, 400, 800, 0);             // Y-axis (vertical line)
+}
+
+// -------- Draw Triangle using DDA --------
+void drawTriangle() {
+    glColor3f(0, 0, 1);                           // Blue color for triangle
+    drawLineDDA(400, 500, 500, 300, lineType);    // Top to right corner
+    drawLineDDA(500, 300, 300, 300, lineType);    // Right to left base
+    drawLineDDA(300, 300, 400, 500, lineType);    // Left base to top
+}
+
+// -------- Display Callback --------
+void display() {
+    glClear(GL_COLOR_BUFFER_BIT);  // Clear the screen
+
+    drawAxis();                    // Draw the coordinate axis
+
+    if (triangleDrawn)
+        drawTriangle();           // If triangle is clicked, draw it
+
+    glFlush();                     // Flush the output to the screen
+}
+
+// -------- Menu Selection Callback --------
+void menu(int option) {
+    lineType = option;            // Set selected line type
+    glutPostRedisplay();          // Redraw the window
+}
+
+// -------- Mouse Click Callback --------
+void mouse(int button, int state, int x, int y) {
+    if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN) {
+        triangleDrawn = true;     // Enable triangle drawing
+        glutPostRedisplay();      // Redraw the screen
+    }
+}
+
+// -------- Main Function --------
+int main(int argc, char** argv) {
+    glutInit(&argc, argv);                               // Initialize GLUT
+    glutInitWindowSize(800, 800);                        // Set window size
+    glutInitDisplayMode(GLUT_SINGLE | GLUT_RGB);         // Single buffer, RGB mode
+    glutCreateWindow("DDA Triangle Drawing");            // Create window
+
+    init();                                              // Call initialization
+
+    glutDisplayFunc(display);                            // Set display callback
+    glutMouseFunc(mouse);                                // Set mouse click callback
+
+    // Create right-click menu for line types
+    glutCreateMenu(menu);
+    glutAddMenuEntry("Simple Line", 0);
+    glutAddMenuEntry("Dotted Line", 1);
+    glutAddMenuEntry("Dashed Line", 2);
+    glutAddMenuEntry("Solid Line", 3);
+    glutAttachMenu(GLUT_RIGHT_BUTTON);                   // Attach menu to right click
+
+    glutMainLoop();                                      // Start the event loop
+    return 0;
+}
